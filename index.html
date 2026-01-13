@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WilsChat</title>
+
+<style>
+body{font-family:Arial;background:#f2f2f2;margin:0}
+header{background:#4CAF50;color:#fff;padding:10px}
+#topMenu{display:flex;justify-content:space-between;align-items:center}
+#userStatus{font-size:13px;white-space:nowrap;overflow-x:auto}
+.status{margin-right:8px}
+.online{color:#b6ffb6}
+.offline{color:#eee}
+
+#login,#chat{
+  display:flex;
+  flex-direction:column;
+  height:calc(100vh - 70px);
+  margin:10px;
+  background:#fff;
+  border-radius:8px;
+  padding:10px
+}
+#chat{display:none}
+
+input,button{
+  padding:10px;
+  font-size:16px;
+  border-radius:8px;
+  border:1px solid #ccc
+}
+button{
+  background:#4CAF50;
+  color:#fff;
+  border:none
+}
+
+#messages{
+  flex:1;
+  border:1px solid #ddd;
+  padding:8px;
+  overflow-y:auto;
+  margin-bottom:8px
+}
+.msg{
+  margin-bottom:6px;
+  padding:6px 10px;
+  border-radius:6px;
+  background:#eee;
+  max-width:80%
+}
+.me{
+  background:#c8f7c5;
+  margin-left:auto;
+  text-align:right
+}
+.system{
+  text-align:center;
+  font-style:italic;
+  color:#666;
+  background:none
+}
+.meta{
+  font-size:.75em;
+  color:#666
+}
+img,audio{
+  max-width:200px;
+  margin-top:6px
+}
+
+.controls{
+  display:flex;
+  gap:6px
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div id="topMenu">
+    <strong>WilsChat</strong>
+    <div id="userStatus"></div>
+  </div>
+</header>
+
+<div id="login">
+  <h3>Ingresa tu nombre</h3>
+  <input id="username" placeholder="Tu nombre">
+  <button id="enterBtn">Entrar</button>
+</div>
+
+<div id="chat">
+  <div id="messages"></div>
+
+  <div class="controls">
+    <input id="text" placeholder="Escribe un mensaje" style="flex:1">
+    <input type="file" id="photoInput" accept="image/*" hidden>
+    <button id="photoBtn">📷</button>
+    <button id="recordBtn">🎤</button>
+    <button id="sendBtn">➤</button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+
+<script>
+/* CONFIG */
+firebase.initializeApp({
+  apiKey:"AIzaSyAEkdn1nVDbrJEQY13JrE-peN1JkXrOy24",
+  databaseURL:"https://wilschat-1b27d-default-rtdb.firebaseio.com",
+  projectId:"wilschat-1b27d",
+  storageBucket:"wilschat-1b27d.appspot.com"
+});
+
+const db=firebase.database();
+const st=firebase.storage();
+let user="",presenceRef=null;
+
+/* UTIL */
+const time=t=>new Date(t).toLocaleTimeString();
+
+/* MENSAJES */
+function addMsg(m){
+  const d=document.createElement("div");
+  d.className="msg"+(m.user===user?" me":"");
+
+  if(m.system){
+    d.className="system";
+    d.textContent=m.text+" — "+time(m.ts);
+  }else if(m.type==="image"){
+    d.innerHTML=`<strong>${m.user}:</strong><br><img src="${m.url}">`;
+  }else if(m.type==="audio"){
+    d.innerHTML=`<strong>${m.user}:</strong><br><audio controls src="${m.url}"></audio>`;
+  }else{
+    d.innerHTML=`<strong>${m.user}:</strong> ${m.text}`;
+  }
+
+  if(m.user===user){
+    d.onclick=()=>confirm("¿Eliminar mensaje?")&&db.ref("mensajes/"+m.key).remove();
+  }
+
+  messages.appendChild(d);
+  messages.scrollTop=messages.scrollHeight;
+}
+
+/* ENTRAR */
+enterBtn.onclick=()=>{
+  if(!username.value.trim())return;
+  user=username.value.trim();
+  login.style.display="none";
+  chat.style.display="flex";
+
+  db.ref("users/"+user).set({name:user});
+  presenceRef=db.ref("presence").push({name:user});
+  presenceRef.onDisconnect().remove();
+
+  db.ref("mensajes").push({system:true,text:user+" entró al chat",ts:Date.now()});
+};
+
+/* ENVIAR */
+sendBtn.onclick=()=>{
+  if(!text.value.trim())return;
+  db.ref("mensajes").push({user,text:text.value,ts:Date.now()});
+  text.value="";
+};
+
+/* RECIBIR */
+db.ref("mensajes").limitToLast(200).on("child_added",s=>{
+  const m=s.val(); if(!m)return;
+  m.key=s.key;
+  addMsg(m);
+});
+
+/* FOTO */
+photoBtn.onclick=()=>photoInput.click();
+photoInput.onchange=e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=st.ref("photos/"+Date.now()+f.name);
+  r.put(f).then(s=>s.ref.getDownloadURL().then(u=>{
+    db.ref("mensajes").push({user,type:"image",url:u,ts:Date.now()});
+  }));
+};
+
+/* AUDIO */
+let rec,chunks=[];
+recordBtn.onclick=async function(){
+  if(!rec||rec.state==="inactive"){
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    rec=new MediaRecorder(stream); chunks=[];
+    rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=()=>{
+      const b=new Blob(chunks,{type:"audio/webm"});
+      const r=st.ref("audios/"+Date.now()+".webm");
+      r.put(b).then(s=>s.ref.getDownloadURL().then(u=>{
+        db.ref("mensajes").push({user,type:"audio",url:u,ts:Date.now()});
+      }));
+    };
+    rec.start(); this.textContent="⏹️";
+  }else{
+    rec.stop(); this.textContent="🎤";
+  }
+};
+
+/* ONLINE / OFFLINE */
+function updateUsers(){
+  Promise.all([
+    db.ref("users").once("value"),
+    db.ref("presence").once("value")
+  ]).then(([u,p])=>{
+    const on=[];
+    p.forEach(c=>on.push(c.val().name));
+    let h="";
+    u.forEach(c=>{
+      const n=c.key;
+      h+=on.includes(n)
+        ?`<span class="status online">🟢 ${n}</span>`
+        :`<span class="status offline">⚪ ${n}</span>`;
+    });
+    userStatus.innerHTML=h;
+  });
+}
+db.ref("presence").on("value",updateUsers);
+db.ref("users").on("value",updateUsers);
+</script>
+
+</body>
+</html>
