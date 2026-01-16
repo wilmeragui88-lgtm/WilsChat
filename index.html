@@ -3,58 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WilsChat</title>
+<title>WilsChat - Estilo WhatsApp</title>
 <style>
-body{font-family:Arial;background:#f2f2f2;margin:0;padding:0;}
-header{background:#4CAF50;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);}
-#chatMenuBtn{cursor:pointer;padding:6px 12px;background:#388E3C;border-radius:6px;color:#fff;font-weight:bold;}
-#chatMenuWindow{position:fixed;top:70px;left:10px;width:240px;max-height:400px;overflow:auto;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none;padding:12px;z-index:100;}
-.status{margin-right:5px;cursor:pointer;display:block;padding:4px 2px;}
-.online{color:#aaffaa;}
-.offline{color:#ddd;}
-#login,#chat{display:flex;flex-direction:column;height:calc(100vh - 70px);margin:10px 15px;background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-#messages{flex:1;border:1px solid #ddd;padding:12px;overflow-y:auto;margin-bottom:12px;border-radius:8px;background:#fafafa;}
-.msg{margin-bottom:10px;padding:8px 12px;border-radius:8px;background:#eee;}
-.me{background:#c8f7c5;text-align:right;}
+body{font-family:Arial,sans-serif;background:#e5ddd5;margin:0;padding:0;color:#333;}
+header{background:#075e54;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);}
+#chatMenuBtn{cursor:pointer;padding:6px 12px;background:#128c7e;border-radius:6px;color:#fff;font-weight:bold;}
+img{max-width:100%;border-radius:6px;margin-top:6px;}
+audio{margin-top:6px;width:100%;}
+
+#chatMenuWindow{position:fixed;top:70px;left:10px;width:240px;max-height:60vh;overflow-y:auto;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none;padding:15px;z-index:100;}
+#usersList strong{display:block;margin-top:8px;margin-bottom:4px;font-size:14px;color:#333;text-decoration:underline;}
+.status{display:flex;align-items:center;margin:4px 0;padding:4px 6px;border-radius:6px;cursor:pointer;transition:background 0.2s;}
+.status:hover{background:#f0f0f0;}
+.online .dot{width:10px;height:10px;background:#00cc44;border-radius:50%;margin-right:8px;}
+.offline .dot{width:10px;height:10px;background:#cccccc;border-radius:50%;margin-right:8px;}
+.status span.name{font-weight:bold;color:#333;}
+
+#login,#chat{display:flex;flex-direction:column;margin:10px auto;background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,0.1);width:95%;max-width:600px;}
+#chat{display:none;}
+#messages{flex:1;padding:12px;overflow-y:auto;margin-bottom:70px;border-radius:8px;background:#e5ddd5;display:flex;flex-direction:column;}
+.msg{margin-bottom:6px;padding:10px 14px;border-radius:20px;max-width:75%;word-wrap:break-word;display:inline-block;}
+.me{background:#dcf8c6;align-self:flex-end;}
+.other{background:#fff;align-self:flex-start;}
 .system{text-align:center;font-style:italic;color:#666;background:none;}
-.meta{font-size:.75em;color:#666;margin-top:2px;}
-.controls{display:flex;gap:8px;padding-top:6px;}
-.controls input,#privateControls input{padding:10px;border-radius:8px;border:1px solid #ccc;}
-.controls button,#privateControls button{background:#4CAF50;color:#fff;border:none;cursor:pointer;padding:10px 12px;border-radius:8px;}
-img{max-width:200px;border-radius:6px;margin-top:6px;}
-audio{margin-top:6px;width:200px;}
-/* CHAT PRIVADO FULLSCREEN */
-#privateChatFull{
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:#fff;
-  z-index:200;
-  display:none;
-  flex-direction:column;
-  padding:30px; /* padding interno para separar del borde */
-  box-sizing:border-box;
+.meta{font-size:.7em;color:#555;margin-top:4px;text-align:right;}
+.date-sep{text-align:center;font-size:.75em;color:#999;margin:10px 0;font-weight:bold;}
+
+#privateChatFull{position:fixed;top:0;left:0;width:100%;height:100%;background:#e5ddd5;z-index:200;display:none;flex-direction:column;padding:30px;box-sizing:border-box;}
+#privateHeader{background:#075e54;color:#fff;padding:12px 15px;font-weight:bold;display:flex;justify-content:space-between;align-items:center;border-radius:6px;margin-bottom:15px;}
+#privateMessages{flex:1;overflow-y:auto;padding:15px;background:#d2f7d1;border-radius:8px;margin-bottom:70px;display:flex;flex-direction:column;}
+#privateMessages .msg{border-radius:20px;max-width:75%;padding:10px 14px;word-wrap:break-word;margin-bottom:6px;}
+#privateMessages .me{background:#dcf8c6;align-self:flex-end;}
+#privateMessages .other{background:#fff;align-self:flex-start;}
+#privateMessages .meta{font-size:.7em;color:#555;margin-top:4px;text-align:right;}
+.date-sep-private{text-align:center;font-size:.75em;color:#999;margin:10px 0;font-weight:bold;}
+
+.controls, #privateControls {
+  display:flex;align-items:center;gap:8px;padding:10px 0;position:sticky;bottom:0;background:#fff;box-shadow:0 -2px 6px rgba(0,0,0,0.1);z-index:50;
 }
-#privateHeader{
-  background:#4CAF50;
-  color:#fff;
-  padding:12px 15px;
-  font-weight:bold;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  border-radius:6px;
-  margin-bottom:15px; /* separación del área de mensajes */
+
+.controls textarea, #privateControls textarea {
+  flex:1;padding:12px 16px;border-radius:24px;border:1px solid #ccc;outline:none;font-size:16px;transition:all 0.2s;background:#f5f5f5;resize:none;min-height:44px;max-height:120px;overflow-y:auto;
 }
-#privateMessages{
-  flex:1;
-  overflow-y:auto;
-  padding:15px; /* margen interno de mensajes */
-  background:#f9f9f9;
-  border-radius:8px;
-  margin-bottom:15px; /* separación de los controles */
-}
-#privateControls{display:flex;gap:8px;padding-top:8px;}
+
+.controls textarea:focus, #privateControls textarea:focus{border-color:#128c7e;box-shadow:0 0 8px rgba(18,140,126,0.3);background:#fff;}
+.controls button, #privateControls button{padding:12px 18px;border-radius:24px;background:#128c7e;color:#fff;font-weight:bold;border:none;cursor:pointer;transition:all 0.2s;}
+.controls button:hover, #privateControls button:hover{background:#0f7a66;}
+@media(max-width:500px){#chatMenuWindow{width:80%;top:60px;left:10%;padding:10px;}#login,#chat{width:95%;padding:12px;margin:10px;} .controls textarea,#privateControls textarea{min-width:80px;}#privateChatFull{padding:15px;}#privateHeader{font-size:14px;padding:10px;}}
 </style>
 </head>
 <body>
@@ -75,7 +70,7 @@ audio{margin-top:6px;width:200px;}
 <div id="chat">
   <div id="messages"></div>
   <div class="controls">
-    <input id="text" placeholder="Escribe un mensaje" style="flex:1">
+    <textarea id="text" placeholder="Escribe un mensaje"></textarea>
     <input type="file" id="photoInput" accept="image/*" hidden>
     <button onclick="photoInput.click()">📷</button>
     <button id="recordBtn">🎤</button>
@@ -83,7 +78,6 @@ audio{margin-top:6px;width:200px;}
   </div>
 </div>
 
-<!-- CHAT PRIVADO FULLSCREEN -->
 <div id="privateChatFull">
   <div id="privateHeader">
     <span id="privateUserName"></span>
@@ -91,152 +85,128 @@ audio{margin-top:6px;width:200px;}
   </div>
   <div id="privateMessages"></div>
   <div id="privateControls">
-    <input id="privateText" placeholder="Escribe un mensaje">
+    <textarea id="privateText" placeholder="Escribe un mensaje"></textarea>
     <button id="privateSendBtn">Enviar</button>
   </div>
 </div>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
 <script>
-var firebaseConfig={
-  apiKey:"AIzaSyAEkdn1nVDbrJEQY13JrE-peN1JkXrOy24",
-  authDomain:"wilschat-1b27d.firebaseapp.com",
-  databaseURL:"https://wilschat-1b27d-default-rtdb.firebaseio.com",
-  projectId:"wilschat-1b27d",
-  storageBucket:"wilschat-1b27d.appspot.com",
-  messagingSenderId:"550632985900",
-  appId:"1:550632985900:web:c886e89b4330560b6ac889"
-};
+var firebaseConfig={apiKey:"AIzaSyAEkdn1nVDbrJEQY13JrE-peN1JkXrOy24",authDomain:"wilschat-1b27d.firebaseapp.com",databaseURL:"https://wilschat-1b27d-default-rtdb.firebaseio.com",projectId:"wilschat-1b27d",storageBucket:"wilschat-1b27d.appspot.com",messagingSenderId:"550632985900",appId:"1:550632985900:web:c886e89b4330560b6ac889"};
 firebase.initializeApp(firebaseConfig);
 
-var db=firebase.database();
-var storage=firebase.storage();
+var db=firebase.database(), storage=firebase.storage();
 var user="", presenceKey=null, currentRef=null, privateWith=null;
 
 function chatId(a,b){return [a,b].sort().join("_");}
-function time(ts){return new Date(ts).toLocaleTimeString();}
+function formatDate(ts){ let d=new Date(ts); let today=new Date(); let yesterday=new Date(today); yesterday.setDate(today.getDate()-1);
+if(d.toDateString()===today.toDateString()) return "Hoy";
+if(d.toDateString()===yesterday.toDateString()) return "Ayer";
+return d.toLocaleDateString(); }
+function time(ts){return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}
 
-function addMsg(m,container){
-  var div=document.createElement("div");
-  div.className="msg"+(m.user===user?" me":"");
-  if(m.system){div.className+=" system"; div.textContent=m.text+" — "+time(m.ts); container.appendChild(div); return;}
+var lastDatePublic=null;
+function addMsg(m, container){
+  var msgDate=formatDate(m.ts);
+  if(container.id==="messages" && lastDatePublic!==msgDate){
+    var sep=document.createElement("div"); sep.className="date-sep"; sep.textContent=msgDate;
+    container.appendChild(sep); lastDatePublic=msgDate;
+  }
+  var div=document.createElement("div"); div.className="msg "+(m.user===user?"me":"other");
+  if(m.system){div.className+=" system"; div.textContent=m.text+" — "+time(m.ts); container.appendChild(div); container.scrollTop=container.scrollHeight; return;}
   div.innerHTML="<strong>"+m.user+":</strong> ";
   if(m.type==="image"){var i=document.createElement("img"); i.src=m.url; div.appendChild(i);}
   else if(m.type==="audio"){var a=document.createElement("audio"); a.controls=true; a.src=m.url; div.appendChild(a);}
   else div.innerHTML+=" "+m.text;
-
-  var meta=document.createElement("div"); meta.className="meta"; meta.textContent=time(m.ts);
-  div.appendChild(meta);
-
-  if(m.user!==user){div.style.cursor="pointer"; div.onclick=function(){ openPrivateFull(m.user); } }
-  container.appendChild(div); container.scrollTop=container.scrollHeight;
+  var meta=document.createElement("div"); meta.className="meta"; meta.textContent=time(m.ts); div.appendChild(meta);
+  if(container.id==="messages" && m.user!==user){ div.style.cursor="pointer"; div.onclick=function(){ openPrivateFull(m.user); } }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
 }
 
-/* LOGIN */
 enterBtn.onclick=function(){
-  if(!username.value.trim()) return;
-  user=username.value.trim();
+  if(!username.value.trim()) return; user=username.value.trim();
   login.style.display="none"; chat.style.display="flex";
   db.ref("users/"+user).set({name:user,lastSeen:Date.now()});
   var ref=db.ref("presence").push({name:user}); presenceKey=ref.key; ref.onDisconnect().remove();
   db.ref("mensajes").push({system:true,text:user+" entró al chat",ts:Date.now()});
   listenPublic();
-};
-
-/* CHAT PUBLICO */
-function listenPublic(){
-  if(currentRef) currentRef.off();
-  document.getElementById("messages").innerHTML="";
-  currentRef=db.ref("mensajes").limitToLast(200);
-  currentRef.on("child_added",s=>{if(s.val()) addMsg(s.val(),document.getElementById("messages"));});
 }
 
-/* ENVIAR */
-sendBtn.onclick=function(){
-  let textEl=document.getElementById("text");
-  if(!textEl.value.trim()) return;
-  db.ref("mensajes").push({user:user,text:textEl.value,ts:Date.now()});
-  textEl.value="";
-};
+function listenPublic(){
+  if(currentRef) currentRef.off();
+  var container=document.getElementById("messages"); container.innerHTML=""; lastDatePublic=null;
+  currentRef=db.ref("mensajes").limitToLast(200);
+  currentRef.on("child_added", s=>{if(s.val()) addMsg(s.val(), container);});
+}
 
-/* FOTOS */
-photoInput.onchange=function(e){
-  var f=e.target.files[0]; if(!f) return;
-  var r=storage.ref("photos/"+Date.now()+f.name);
-  r.put(f).then(s=>s.ref.getDownloadURL().then(u=>{ db.ref("mensajes").push({user:user,type:"image",url:u,ts:Date.now()}); }));
-};
+sendBtn.onclick=function(){ let txt=document.getElementById("text"); if(!txt.value.trim()) return;
+  db.ref("mensajes").push({user:user,text:txt.value,ts:Date.now()}); txt.value="";
+}
 
-/* AUDIO */
+photoInput.onchange=function(e){ var f=e.target.files[0]; if(!f) return;
+  var r=storage.ref("photos/"+Date.now()+f.name); r.put(f).then(s=>s.ref.getDownloadURL().then(u=>{
+  db.ref("mensajes").push({user:user,type:"image",url:u,ts:Date.now()}); }));
+}
+
 let rec,chunks=[];
 recordBtn.onclick=async function(){
-  if(!rec||rec.state==="inactive"){
-    var st=await navigator.mediaDevices.getUserMedia({audio:true});
-    rec=new MediaRecorder(st); chunks=[];
-    rec.ondataavailable=e=>chunks.push(e.data);
-    rec.onstop=()=>{
-      var b=new Blob(chunks,{type:"audio/webm"});
-      var r=storage.ref("audios/"+Date.now()+".webm");
+  if(!rec||rec.state==="inactive"){ var st=await navigator.mediaDevices.getUserMedia({audio:true});
+    rec=new MediaRecorder(st); chunks=[]; rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=()=>{ var b=new Blob(chunks,{type:"audio/webm"}); var r=storage.ref("audios/"+Date.now()+".webm");
       r.put(b).then(s=>s.ref.getDownloadURL().then(u=>{ db.ref("mensajes").push({user:user,type:"audio",url:u,ts:Date.now()}); }));
     };
     rec.start(); this.textContent="⏹️";
   }else{rec.stop(); this.textContent="🎤";}
-};
+}
 
-/* MENÚ USUARIOS */
 function updateUsers(){
-  Promise.all([db.ref("users").once("value"),db.ref("presence").once("value")]).then(([u,p])=>{
-    var online=[]; p.forEach(c=>online.push(c.val().name));
-    var html="<strong>Conectados:</strong><br>";
-    u.forEach(c=>{
-      var n=c.key;
-      if(online.includes(n)){ html+=`<span class="status online" onclick="openPrivateFull('${n}')">🟢 ${n}</span><br>`; }
-    });
-    html+="<strong>No conectados:</strong><br>";
-    u.forEach(c=>{
-      var n=c.key;
-      if(!online.includes(n)){ html+=`<span class="status offline">⚪ ${n}</span><br>`; }
-    });
+  Promise.all([db.ref("users").once("value"),db.ref("presence").once("value")])
+  .then(([u,p])=>{
+    var online=[]; p.forEach(c=>online.push(c.val().name)); var html="<strong>Conectados:</strong>";
+    u.forEach(c=>{ var n=c.key; if(online.includes(n)){
+      html+=`<div class="status online" onclick="openPrivateFull('${n}')"><div class="dot"></div><span class="name">${n}</span></div>`; }});
+    html+="<strong>No conectados:</strong>";
+    u.forEach(c=>{ var n=c.key; if(!online.includes(n)){
+      html+=`<div class="status offline"><div class="dot"></div><span class="name">${n}</span></div>`; }});
     document.getElementById("usersList").innerHTML=html;
   });
 }
 db.ref("presence").on("value",updateUsers);
 db.ref("users").on("value",updateUsers);
 
-/* CHAT PRIVADO FULLSCREEN */
 function openPrivateFull(name){
-  if(name===user) return;
-  privateWith=name;
+  if(name===user) return; privateWith=name;
   document.getElementById("privateUserName").textContent=name;
   document.getElementById("privateChatFull").style.display="flex";
-  document.getElementById("privateMessages").innerHTML="";
-  db.ref("mensajes_privados/"+chatId(user,name)).limitToLast(200).on("child_added",s=>{
-    if(s.val()) addMsg(s.val(),document.getElementById("privateMessages"));
+  var container=document.getElementById("privateMessages"); container.innerHTML="";
+  let lastDatePrivate=null;
+  db.ref("mensajes_privados/"+chatId(user,name)).limitToLast(200).on("child_added", s=>{
+    if(!s.val()) return; let m=s.val(); let msgDate=formatDate(m.ts);
+    if(lastDatePrivate!==msgDate){ let sep=document.createElement("div"); sep.className="date-sep-private"; sep.textContent=msgDate; container.appendChild(sep); lastDatePrivate=msgDate;}
+    var div=document.createElement("div"); div.className="msg "+(m.user===user?"me":"other");
+    if(m.system){div.className+=" system"; div.textContent=m.text+" — "+time(m.ts); container.appendChild(div); container.scrollTop=container.scrollHeight; return;}
+    div.innerHTML="<strong>"+m.user+":</strong> ";
+    if(m.type==="image"){var i=document.createElement("img"); i.src=m.url; div.appendChild(i);}
+    else if(m.type==="audio"){var a=document.createElement("audio"); a.controls=true; a.src=m.url; div.appendChild(a);}
+    else div.innerHTML+=" "+m.text;
+    container.appendChild(div); container.scrollTop=container.scrollHeight;
   });
 }
 
-/* ENVIAR PRIVADO */
 document.getElementById("privateSendBtn").onclick=function(){
-  let txt=document.getElementById("privateText");
-  if(!txt.value.trim()||!privateWith) return;
-  db.ref("mensajes_privados/"+chatId(user,privateWith)).push({user:user,text:txt.value,ts:Date.now()});
-  txt.value="";
+  let txt=document.getElementById("privateText"); if(!txt.value.trim()||!privateWith) return;
+  db.ref("mensajes_privados/"+chatId(user,privateWith)).push({user:user,text:txt.value,ts:Date.now()}); txt.value="";
 }
 
-/* SALIR CHAT PRIVADO */
-document.getElementById("closePrivateBtn").onclick=function(){
-  document.getElementById("privateChatFull").style.display="none";
-  privateWith=null;
-}
+document.getElementById("closePrivateBtn").onclick=function(){ document.getElementById("privateChatFull").style.display="none"; privateWith=null; }
 
-/* MENÚ DESPLEGABLE */
-chatMenuBtn.onclick=function(){
-  var w=document.getElementById("chatMenuWindow");
+chatMenuBtn.onclick=function(){ var w=document.getElementById("chatMenuWindow");
   w.style.display = w.style.display==="block"?"none":"block";
-};
+}
 
 window.addEventListener("beforeunload",()=>{ if(user) db.ref("users/"+user+"/lastSeen").set(Date.now()); });
 </script>
