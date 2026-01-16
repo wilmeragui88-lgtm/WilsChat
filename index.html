@@ -7,19 +7,37 @@
 <style>
 body{font-family:Arial,sans-serif;background:#e5ddd5;margin:0;padding:0;color:#333;}
 header{background:#075e54;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);}
-#chatMenuBtn{cursor:pointer;padding:6px 12px;background:#128c7e;border-radius:6px;color:#fff;font-weight:bold;}
 img{max-width:100%;border-radius:6px;margin-top:6px;}
 audio{margin-top:6px;width:100%;}
 
-#chatMenuWindow{position:fixed;top:70px;left:10px;width:240px;max-height:60vh;overflow-y:auto;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.3);display:none;padding:15px;z-index:100;}
-#usersList strong{display:block;margin-top:8px;margin-bottom:4px;font-size:14px;color:#333;text-decoration:underline;}
-.status{display:flex;align-items:center;margin:4px 0;padding:4px 6px;border-radius:6px;cursor:pointer;transition:background 0.2s;}
-.status:hover{background:#f0f0f0;}
-.online .dot{width:10px;height:10px;background:#00cc44;border-radius:50%;margin-right:8px;}
-.offline .dot{width:10px;height:10px;background:#cccccc;border-radius:50%;margin-right:8px;}
-.status span.name{font-weight:bold;color:#333;}
+#chatMenuWindow{
+    position:fixed; top:70px; left:10px; width:240px; max-height:60vh;
+    background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,.3);
+    padding:10px; display:none; z-index:100; overflow-y:auto; font-family:Arial,sans-serif;
+}
+#chatMenuWindow::-webkit-scrollbar {width:8px;}
+#chatMenuWindow::-webkit-scrollbar-track {background:#f0f0f0; border-radius:4px;}
+#chatMenuWindow::-webkit-scrollbar-thumb {background-color:#128c7e; border-radius:4px; border:2px solid #f0f0f0;}
+#chatMenuWindow {scrollbar-width: thin; scrollbar-color:#128c7e #f0f0f0;}
+#usersList > strong {display:block;margin:10px 0 6px 0; font-size:14px; color:#075e54; border-bottom:1px solid #ccc; padding-bottom:4px;}
+
+.status {
+    display:flex; align-items:center; padding:6px 10px; border-radius:8px; cursor:pointer;
+    transition:background 0.2s, transform 0.1s;
+}
+.status:hover {background:#e0f2f1; transform:translateX(2px);}
+.online {background:#e6f7ef;}
+.offline {background:#f5f5f5;}
+.status span.name {font-weight:bold; color:#333; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;}
+.status .avatar {
+    width:32px; height:32px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:bold; font-size:14px; margin-right:8px; flex-shrink:0; text-transform:uppercase;
+}
 
 #login,#chat{display:flex;flex-direction:column;margin:10px auto;background:#fff;border-radius:10px;padding:15px;box-shadow:0 2px 6px rgba(0,0,0,0.1);width:95%;max-width:600px;}
+#login h3 {font-size:1.5em; margin-bottom:12px;}
+#username {font-size:1.1em; padding:10px;}
+#enterBtn {font-size:1.2em; padding:12px 20px;}
 #chat{display:none;}
 #messages{flex:1;padding:12px;overflow-y:auto;margin-bottom:70px;border-radius:8px;background:#e5ddd5;display:flex;flex-direction:column;}
 .msg{margin-bottom:6px;padding:10px 14px;border-radius:20px;max-width:75%;word-wrap:break-word;display:inline-block;}
@@ -56,7 +74,8 @@ audio{margin-top:6px;width:100%;}
 
 <header>
   <strong>WilsChat</strong>
-  <div id="chatMenuBtn">Chat ▼</div>
+  <!-- Botón menú con texto "Chatear" dentro antes de las ☰ -->
+  <div id="chatMenuBtn" style="display:none; cursor:pointer; font-weight:bold;">Chatear ☰</div>
 </header>
 
 <div id="chatMenuWindow"><div id="usersList"></div></div>
@@ -101,6 +120,13 @@ firebase.initializeApp(firebaseConfig);
 var db=firebase.database(), storage=firebase.storage();
 var user="", presenceKey=null, currentRef=null, privateWith=null;
 
+const avatarColors = ["#128c7e","#075e54","#34b7f1","#f39c12","#e74c3c","#8e44ad","#2ecc71","#d35400","#3498db","#1abc9c"];
+function getAvatarColor(name){
+    let hash=0; for(let i=0;i<name.length;i++){hash=name.charCodeAt(i)+((hash<<5)-hash);}
+    let index=Math.abs(hash)%avatarColors.length;
+    return avatarColors[index];
+}
+
 function chatId(a,b){return [a,b].sort().join("_");}
 function formatDate(ts){ let d=new Date(ts); let today=new Date(); let yesterday=new Date(today); yesterday.setDate(today.getDate()-1);
 if(d.toDateString()===today.toDateString()) return "Hoy";
@@ -130,10 +156,15 @@ function addMsg(m, container){
 enterBtn.onclick=function(){
   if(!username.value.trim()) return; user=username.value.trim();
   login.style.display="none"; chat.style.display="flex";
+
+  document.getElementById("chatMenuBtn").style.display="block";
+
   db.ref("users/"+user).set({name:user,lastSeen:Date.now()});
   var ref=db.ref("presence").push({name:user}); presenceKey=ref.key; ref.onDisconnect().remove();
   db.ref("mensajes").push({system:true,text:user+" entró al chat",ts:Date.now()});
   listenPublic();
+
+  updateUsers();
 }
 
 function listenPublic(){
@@ -166,15 +197,31 @@ recordBtn.onclick=async function(){
 function updateUsers(){
   Promise.all([db.ref("users").once("value"),db.ref("presence").once("value")])
   .then(([u,p])=>{
-    var online=[]; p.forEach(c=>online.push(c.val().name)); var html="<strong>Conectados:</strong>";
+    var online=[]; p.forEach(c=>online.push(c.val().name));
+    var html="<strong>Chat</strong>";
+
     u.forEach(c=>{ var n=c.key; if(online.includes(n)){
-      html+=`<div class="status online" onclick="openPrivateFull('${n}')"><div class="dot"></div><span class="name">${n}</span></div>`; }});
-    html+="<strong>No conectados:</strong>";
+      let initial=n.charAt(0).toUpperCase(); let color=getAvatarColor(n);
+      html+=`<div class="status online" onclick="openPrivateFull('${n}')">
+                <div class="avatar" style="background-color:${color}">${initial}</div>
+                <span class="name">${n}</span>
+             </div>`; 
+    }});
+
+    html+="<strong>No conectados</strong>";
     u.forEach(c=>{ var n=c.key; if(!online.includes(n)){
-      html+=`<div class="status offline"><div class="dot"></div><span class="name">${n}</span></div>`; }});
+      let initial=n.charAt(0).toUpperCase(); let color=getAvatarColor(n);
+      html+=`<div class="status offline">
+                <div class="avatar" style="background-color:${color}">${initial}</div>
+                <span class="name">${n}</span>
+             </div>`; 
+    }});
+
     document.getElementById("usersList").innerHTML=html;
+    document.getElementById("chatMenuWindow").scrollTop=0;
   });
 }
+
 db.ref("presence").on("value",updateUsers);
 db.ref("users").on("value",updateUsers);
 
@@ -204,7 +251,8 @@ document.getElementById("privateSendBtn").onclick=function(){
 
 document.getElementById("closePrivateBtn").onclick=function(){ document.getElementById("privateChatFull").style.display="none"; privateWith=null; }
 
-chatMenuBtn.onclick=function(){ var w=document.getElementById("chatMenuWindow");
+chatMenuBtn.onclick=function(){ 
+  var w=document.getElementById("chatMenuWindow");
   w.style.display = w.style.display==="block"?"none":"block";
 }
 
