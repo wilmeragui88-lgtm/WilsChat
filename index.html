@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WilsChat - Estilo WhatsApp</title>
+<title>WilsChat - Original Pro</title>
 <style>
 body{font-family:Arial,sans-serif;background:#e5ddd5;margin:0;padding:0;color:#333;}
 header{background:#075e54;color:#fff;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 6px rgba(0,0,0,0.2);}
 img{max-width:100%;border-radius:6px;margin-top:6px;}
 audio{margin-top:6px;width:100%;}
+
+/* Estilos para notificaciones añadidos al CSS original */
+.badge { background:#25d366; color:#fff; border-radius:50%; padding:2px 7px; font-size:11px; margin-left:8px; font-weight:bold; }
+#menuBadge { background:#e74c3c; position:absolute; top:8px; right:5px; width:10px; height:10px; border-radius:50%; display:none; }
 
 #chatMenuWindow{
     position:fixed; top:70px; left:10px; width:240px; max-height:60vh;
@@ -23,12 +27,12 @@ audio{margin-top:6px;width:100%;}
 
 .status {
     display:flex; align-items:center; padding:6px 10px; border-radius:8px; cursor:pointer;
-    transition:background 0.2s, transform 0.1s;
+    transition:background 0.2s, transform 0.1s; position:relative;
 }
 .status:hover {background:#e0f2f1; transform:translateX(2px);}
 .online {background:#e6f7ef;}
 .offline {background:#f5f5f5;}
-.status span.name {font-weight:bold; color:#333; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;}
+.status span.name {font-weight:bold; color:#333; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;}
 .status .avatar {
     width:32px; height:32px; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center;
     font-weight:bold; font-size:14px; margin-right:8px; flex-shrink:0; text-transform:uppercase;
@@ -74,8 +78,9 @@ audio{margin-top:6px;width:100%;}
 
 <header>
   <strong>WilsChat</strong>
-  <!-- Botón menú con texto "Chatear" dentro antes de las ☰ -->
-  <div id="chatMenuBtn" style="display:none; cursor:pointer; font-weight:bold;">Chatear ☰</div>
+  <div id="chatMenuBtn" style="display:none; cursor:pointer; font-weight:bold; position:relative;">
+    Chatear ☰ <div id="menuBadge"></div>
+  </div>
 </header>
 
 <div id="chatMenuWindow"><div id="usersList"></div></div>
@@ -109,6 +114,9 @@ audio{margin-top:6px;width:100%;}
   </div>
 </div>
 
+<audio id="sndSend" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg" preload="auto"></audio>
+<audio id="sndReceive" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
@@ -119,23 +127,31 @@ firebase.initializeApp(firebaseConfig);
 
 var db=firebase.database(), storage=firebase.storage();
 var user="", presenceKey=null, currentRef=null, privateWith=null;
+var unreadCounts = {}; // Para las notificaciones visuales
+
+// Desbloqueo de sonido
+document.body.addEventListener("touchstart", ()=>{
+  new (window.AudioContext || window.webkitAudioContext)();
+},{once:true});
+
+function playSend(){ let a=document.getElementById("sndSend"); a.currentTime=0; a.play().catch(()=>{}); }
+function playReceive(){ let a=document.getElementById("sndReceive"); a.currentTime=0; a.play().catch(()=>{}); }
 
 const avatarColors = ["#128c7e","#075e54","#34b7f1","#f39c12","#e74c3c","#8e44ad","#2ecc71","#d35400","#3498db","#1abc9c"];
 function getAvatarColor(name){
     let hash=0; for(let i=0;i<name.length;i++){hash=name.charCodeAt(i)+((hash<<5)-hash);}
-    let index=Math.abs(hash)%avatarColors.length;
-    return avatarColors[index];
+    let index=Math.abs(hash)%avatarColors.length; return avatarColors[index];
 }
 
 function chatId(a,b){return [a,b].sort().join("_");}
-function formatDate(ts){ let d=new Date(ts); let today=new Date(); let yesterday=new Date(today); yesterday.setDate(today.getDate()-1);
-if(d.toDateString()===today.toDateString()) return "Hoy";
-if(d.toDateString()===yesterday.toDateString()) return "Ayer";
-return d.toLocaleDateString(); }
+function formatDate(ts){ let d=new Date(ts); let today=new Date(); if(d.toDateString()===today.toDateString()) return "Hoy"; return d.toLocaleDateString(); }
 function time(ts){return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}
 
 var lastDatePublic=null;
 function addMsg(m, container){
+  // Sonido si recibimos de otro
+  if(m.user && m.user !== user) playReceive();
+
   var msgDate=formatDate(m.ts);
   if(container.id==="messages" && lastDatePublic!==msgDate){
     var sep=document.createElement("div"); sep.className="date-sep"; sep.textContent=msgDate;
@@ -149,49 +165,47 @@ function addMsg(m, container){
   else div.innerHTML+=" "+m.text;
   var meta=document.createElement("div"); meta.className="meta"; meta.textContent=time(m.ts); div.appendChild(meta);
   if(container.id==="messages" && m.user!==user){ div.style.cursor="pointer"; div.onclick=function(){ openPrivateFull(m.user); } }
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
+  container.appendChild(div); container.scrollTop = container.scrollHeight;
 }
 
 enterBtn.onclick=function(){
   if(!username.value.trim()) return; user=username.value.trim();
   login.style.display="none"; chat.style.display="flex";
-
   document.getElementById("chatMenuBtn").style.display="block";
-
   db.ref("users/"+user).set({name:user,lastSeen:Date.now()});
   var ref=db.ref("presence").push({name:user}); presenceKey=ref.key; ref.onDisconnect().remove();
   db.ref("mensajes").push({system:true,text:user+" entró al chat",ts:Date.now()});
   listenPublic();
-
+  listenForPrivateNotif(); // Nueva función para escuchar notificaciones
   updateUsers();
 }
 
 function listenPublic(){
   if(currentRef) currentRef.off();
   var container=document.getElementById("messages"); container.innerHTML=""; lastDatePublic=null;
-  currentRef=db.ref("mensajes").limitToLast(200);
+  currentRef=db.ref("mensajes").limitToLast(100);
   currentRef.on("child_added", s=>{if(s.val()) addMsg(s.val(), container);});
 }
 
+// Escuchar privados en segundo plano para el badge rojo
+function listenForPrivateNotif(){
+    db.ref("mensajes_privados").on("child_added", (snap) => {
+        if(snap.key.includes(user)){
+            snap.ref.limitToLast(1).on("child_added", (mSnap) => {
+                let m = mSnap.val();
+                if(m.user !== user && privateWith !== m.user){
+                    unreadCounts[m.user] = (unreadCounts[m.user] || 0) + 1;
+                    document.getElementById("menuBadge").style.display = "block";
+                    updateUsers();
+                    playReceive(); // Sonido aviso privado
+                }
+            });
+        }
+    });
+}
+
 sendBtn.onclick=function(){ let txt=document.getElementById("text"); if(!txt.value.trim()) return;
-  db.ref("mensajes").push({user:user,text:txt.value,ts:Date.now()}); txt.value="";
-}
-
-photoInput.onchange=function(e){ var f=e.target.files[0]; if(!f) return;
-  var r=storage.ref("photos/"+Date.now()+f.name); r.put(f).then(s=>s.ref.getDownloadURL().then(u=>{
-  db.ref("mensajes").push({user:user,type:"image",url:u,ts:Date.now()}); }));
-}
-
-let rec,chunks=[];
-recordBtn.onclick=async function(){
-  if(!rec||rec.state==="inactive"){ var st=await navigator.mediaDevices.getUserMedia({audio:true});
-    rec=new MediaRecorder(st); chunks=[]; rec.ondataavailable=e=>chunks.push(e.data);
-    rec.onstop=()=>{ var b=new Blob(chunks,{type:"audio/webm"}); var r=storage.ref("audios/"+Date.now()+".webm");
-      r.put(b).then(s=>s.ref.getDownloadURL().then(u=>{ db.ref("mensajes").push({user:user,type:"audio",url:u,ts:Date.now()}); }));
-    };
-    rec.start(); this.textContent="⏹️";
-  }else{rec.stop(); this.textContent="🎤";}
+  db.ref("mensajes").push({user:user,text:txt.value,ts:Date.now()}); txt.value=""; playSend();
 }
 
 function updateUsers(){
@@ -199,26 +213,15 @@ function updateUsers(){
   .then(([u,p])=>{
     var online=[]; p.forEach(c=>online.push(c.val().name));
     var html="<strong>Chat</strong>";
-
     u.forEach(c=>{ var n=c.key; if(online.includes(n)){
-      let initial=n.charAt(0).toUpperCase(); let color=getAvatarColor(n);
+      let color=getAvatarColor(n);
+      let count = unreadCounts[n] ? `<span class="badge">${unreadCounts[n]}</span>` : "";
       html+=`<div class="status online" onclick="openPrivateFull('${n}')">
-                <div class="avatar" style="background-color:${color}">${initial}</div>
-                <span class="name">${n}</span>
+                <div class="avatar" style="background-color:${color}">${n.charAt(0)}</div>
+                <span class="name">${n}</span> ${count}
              </div>`; 
     }});
-
-    html+="<strong>No conectados</strong>";
-    u.forEach(c=>{ var n=c.key; if(!online.includes(n)){
-      let initial=n.charAt(0).toUpperCase(); let color=getAvatarColor(n);
-      html+=`<div class="status offline">
-                <div class="avatar" style="background-color:${color}">${initial}</div>
-                <span class="name">${n}</span>
-             </div>`; 
-    }});
-
     document.getElementById("usersList").innerHTML=html;
-    document.getElementById("chatMenuWindow").scrollTop=0;
   });
 }
 
@@ -227,33 +230,44 @@ db.ref("users").on("value",updateUsers);
 
 function openPrivateFull(name){
   if(name===user) return; privateWith=name;
+  unreadCounts[name] = 0; // Limpiar conteo al abrir
+  if(Object.values(unreadCounts).every(v => v === 0)) document.getElementById("menuBadge").style.display="none";
+
   document.getElementById("privateUserName").textContent=name;
   document.getElementById("privateChatFull").style.display="flex";
   var container=document.getElementById("privateMessages"); container.innerHTML="";
-  let lastDatePrivate=null;
-  db.ref("mensajes_privados/"+chatId(user,name)).limitToLast(200).on("child_added", s=>{
-    if(!s.val()) return; let m=s.val(); let msgDate=formatDate(m.ts);
-    if(lastDatePrivate!==msgDate){ let sep=document.createElement("div"); sep.className="date-sep-private"; sep.textContent=msgDate; container.appendChild(sep); lastDatePrivate=msgDate;}
-    var div=document.createElement("div"); div.className="msg "+(m.user===user?"me":"other");
-    if(m.system){div.className+=" system"; div.textContent=m.text+" — "+time(m.ts); container.appendChild(div); container.scrollTop=container.scrollHeight; return;}
-    div.innerHTML="<strong>"+m.user+":</strong> ";
-    if(m.type==="image"){var i=document.createElement("img"); i.src=m.url; div.appendChild(i);}
-    else if(m.type==="audio"){var a=document.createElement("audio"); a.controls=true; a.src=m.url; div.appendChild(a);}
-    else div.innerHTML+=" "+m.text;
-    container.appendChild(div); container.scrollTop=container.scrollHeight;
+  db.ref("mensajes_privados/"+chatId(user,name)).limitToLast(100).on("child_added", s=>{
+    if(s.val()) addMsg(s.val(), container);
   });
+  updateUsers();
 }
 
 document.getElementById("privateSendBtn").onclick=function(){
   let txt=document.getElementById("privateText"); if(!txt.value.trim()||!privateWith) return;
-  db.ref("mensajes_privados/"+chatId(user,privateWith)).push({user:user,text:txt.value,ts:Date.now()}); txt.value="";
+  db.ref("mensajes_privados/"+chatId(user,privateWith)).push({user:user,text:txt.value,ts:Date.now()}); 
+  txt.value=""; playSend(); 
 }
 
 document.getElementById("closePrivateBtn").onclick=function(){ document.getElementById("privateChatFull").style.display="none"; privateWith=null; }
-
 chatMenuBtn.onclick=function(){ 
   var w=document.getElementById("chatMenuWindow");
   w.style.display = w.style.display==="block"?"none":"block";
+}
+
+photoInput.onchange=function(e){ var f=e.target.files[0]; if(!f) return;
+  var r=storage.ref("photos/"+Date.now()+f.name); r.put(f).then(s=>s.ref.getDownloadURL().then(u=>{
+  db.ref("mensajes").push({user:user,type:"image",url:u,ts:Date.now()}); playSend(); }));
+}
+
+let rec,chunks=[];
+recordBtn.onclick=async function(){
+  if(!rec||rec.state==="inactive"){ var st=await navigator.mediaDevices.getUserMedia({audio:true});
+    rec=new MediaRecorder(st); chunks=[]; rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=()=>{ var b=new Blob(chunks,{type:"audio/webm"}); var r=storage.ref("audios/"+Date.now()+".webm");
+      r.put(b).then(s=>s.ref.getDownloadURL().then(u=>{ db.ref("mensajes").push({user:user,type:"audio",url:u,ts:Date.now()}); playSend(); }));
+    };
+    rec.start(); this.textContent="⏹️";
+  }else{rec.stop(); this.textContent="🎤";}
 }
 
 window.addEventListener("beforeunload",()=>{ if(user) db.ref("users/"+user+"/lastSeen").set(Date.now()); });
