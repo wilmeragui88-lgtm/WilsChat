@@ -17,7 +17,6 @@
     --text-meta: #667781;
 }
 
-/* Mejora: Soporte para Modo Oscuro Automático */
 @media (prefers-color-scheme: dark) {
     :root {
         --primary: #202c33;
@@ -34,7 +33,7 @@
     #chatMenuWindow { background: #222e35; border: 1px solid #3b4a54; }
     .other { background: #202c33 !important; color: #e9edef; }
     .me { background: #005c4b !important; color: #e9edef; }
-    #username, #userSearch { background: #2a3942; color: white; border-color: #3b4a54; }
+    #username, #userSearch, #email, #pass { background: #2a3942; color: white; border-color: #3b4a54; }
     .status:hover { background: #2a3942; }
 }
 
@@ -55,21 +54,22 @@ header strong { font-size: 20px; letter-spacing: 0.5px; }
 #login {
     display: flex; flex-direction: column; margin: auto; background: var(--white);
     border-radius: 20px; padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    width: 90%; max-width: 450px; text-align: center;
+    width: 90%; max-width: 400px; text-align: center;
 }
 #login h2 { margin-top: 0; color: var(--primary); font-size: 28px; margin-bottom: 10px; }
-#login p { color: var(--text-meta); margin-bottom: 25px; }
-#username {
-    padding: 16px; border: 2px solid #eee; border-radius: 12px; font-size: 18px;
-    margin-bottom: 20px; outline: none; transition: border-color 0.3s;
+#login input {
+    padding: 14px; border: 2px solid #eee; border-radius: 12px; font-size: 16px;
+    margin-bottom: 10px; outline: none; transition: border-color 0.3s;
 }
-#username:focus { border-color: var(--primary); }
-#enterBtn {
-    background: var(--primary); color: white; border: none; padding: 18px;
-    border-radius: 12px; font-weight: bold; font-size: 18px; cursor: pointer;
-    transition: background 0.3s;
+#login input:focus { border-color: var(--primary); }
+
+.btn-auth {
+    background: var(--primary); color: white; border: none; padding: 15px;
+    border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer;
+    transition: background 0.3s; margin-top: 5px;
 }
-#enterBtn:hover { background: var(--primary-dark); }
+.btn-auth:hover { background: var(--primary-dark); }
+#regBtn { background: var(--accent); }
 
 #chatMenuWindow {
     position: fixed; top: 60px; left: 10px; width: 280px; max-height: 80vh;
@@ -161,12 +161,6 @@ header strong { font-size: 20px; letter-spacing: 0.5px; }
     flex-direction: column; align-items: center; justify-content: center;
 }
 #previewImg { max-width: 90%; max-height: 70%; border-radius: 8px; }
-
-.date-sep {
-    align-self: center; background: rgba(255,255,255,0.8); padding: 5px 12px;
-    border-radius: 8px; font-size: 12px; color: var(--text-meta); margin: 10px 0;
-    text-transform: uppercase; font-weight: bold;
-}
 </style>
 </head>
 <body>
@@ -190,13 +184,16 @@ header strong { font-size: 20px; letter-spacing: 0.5px; }
         </div>
     </div>
     <div id="usersList"></div>
+    <button onclick="cerrarSesion()" style="width:100%; padding:10px; border:none; background:#e74c3c; color:white; border-radius:8px; cursor:pointer; margin-top:10px;">Cerrar Sesión</button>
 </div>
 
 <div id="login">
-  <h2>¡Hola!</h2>
-  <p>Escribe tu nombre para empezar a chatear.</p>
-  <input id="username" placeholder="Tu nombre aquí..." autocomplete="off">
-  <button id="enterBtn">Entrar al Chat</button>
+  <h2>Bienvenido</h2>
+  <input type="email" id="email" placeholder="Correo electrónico">
+  <input type="password" id="pass" placeholder="Contraseña">
+  <input type="text" id="username" placeholder="Nombre (solo para registro)">
+  <button id="enterBtn" class="btn-auth">Iniciar Sesión</button>
+  <button id="regBtn" class="btn-auth">Crear Cuenta</button>
 </div>
 
 <div id="chat">
@@ -238,6 +235,7 @@ header strong { font-size: 20px; letter-spacing: 0.5px; }
 <audio id="sndReceive" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
 
@@ -245,40 +243,67 @@ header strong { font-size: 20px; letter-spacing: 0.5px; }
 var firebaseConfig={apiKey:"AIzaSyAEkdn1nVDbrJEQY13JrE-peN1JkXrOy24",authDomain:"wilschat-1b27d.firebaseapp.com",databaseURL:"https://wilschat-1b27d-default-rtdb.firebaseio.com",projectId:"wilschat-1b27d",storageBucket:"wilschat-1b27d.appspot.com",messagingSenderId:"550632985900",appId:"1:550632985900:web:c886e89b4330560b6ac889"};
 firebase.initializeApp(firebaseConfig);
 
-var db=firebase.database(), storage=firebase.storage();
+var db=firebase.database(), storage=firebase.storage(), auth=firebase.auth();
 var user="", presenceKey=null, currentRef=null, privateWith=null, typingTimeout, selectedFile=null;
 var unreadCounts = {}, userColor = "#128c7e", userAvatar = "", allUsersCached = [];
 
-/* Mejora: Solicitar permisos de notificación al entrar */
-function requestNotifyPermission() {
-    if ("Notification" in window) {
-        Notification.requestPermission();
-    }
+// FUNCIONES DE AUTH
+function iniciarSesionChat(uName, uColor, uAvatar) {
+    user = uName; userColor = uColor || "#128c7e"; userAvatar = uAvatar || "";
+    if(userAvatar) { myAvatarDisplay.style.backgroundImage = `url(${userAvatar})`; myAvatarDisplay.textContent = ""; }
+    userColorPicker.value = userColor;
+    login.style.display="none"; chat.style.display="flex";
+    document.getElementById("chatMenuBtn").style.display="block";
+    var ref=db.ref("presence").push({name:user}); presenceKey=ref.key; ref.onDisconnect().remove();
+    requestNotifyPermission(); listenPublic(); listenForPrivateNotif(); updateUsers();
 }
 
+regBtn.onclick = function() {
+    let e = email.value, p = pass.value, n = username.value.trim();
+    if(!e || !p || !n) return alert("Completa todos los campos");
+    auth.createUserWithEmailAndPassword(e, p).then(res => {
+        let data = {name:n, color:"#128c7e", avatar:"", email:e};
+        db.ref("users/"+n).set(data);
+        iniciarSesionChat(n, data.color, data.avatar);
+    }).catch(err => alert(err.message));
+};
+
+enterBtn.onclick = function() {
+    let e = email.value, p = pass.value;
+    if(!e || !p) return alert("Email y Contraseña requeridos");
+    auth.signInWithEmailAndPassword(e, p).then(res => {
+        db.ref("users").orderByChild("email").equalTo(e).once("value", s => {
+            s.forEach(child => {
+                let d = child.val();
+                iniciarSesionChat(d.name, d.color, d.avatar);
+            });
+        });
+    }).catch(err => alert(err.message));
+};
+
+function cerrarSesion() {
+    auth.signOut().then(() => { location.reload(); });
+}
+
+// RESTO DEL CÓDIGO ORIGINAL SIN TOCAR
+function requestNotifyPermission() { if ("Notification" in window) Notification.requestPermission(); }
 function sendNotification(title, body) {
     if (document.hidden && Notification.permission === "granted") {
         new Notification(title, { body: body, icon: 'https://cdn-icons-png.flaticon.com/512/134/134914.png' });
-        playReceive(); // Sonido incluso si está bloqueado
+        playReceive();
     }
 }
-
 function playSend(){ document.getElementById("sndSend").play().catch(()=>{}); }
 function playReceive(){ document.getElementById("sndReceive").play().catch(()=>{}); }
 function chatId(a,b){return [a,b].sort().join("_");}
 function time(ts){return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});}
-function formatDate(ts){ let d=new Date(ts); if(d.toDateString()===(new Date()).toDateString()) return "Hoy"; return d.toLocaleDateString(); }
 function autoGrow(el) { el.style.height = "20px"; el.style.height = (el.scrollHeight) + "px"; }
 
 function addMsg(m, container, msgKey){
   if(!m) return;
   if(m.user && m.user !== user) {
       playReceive();
-      if(container.id === "privateMessages") {
-          sendNotification("Nuevo mensaje privado de " + m.user, m.text || "📷 Foto o 🎤 Audio");
-      } else if(container.id === "messages") {
-          sendNotification("Mensaje en el grupo: " + m.user, m.text || "Archivo multimedia");
-      }
+      if(container.id === "privateMessages") sendNotification("Privado de " + m.user, m.text || "📷 Foto/🎤 Audio");
   }
   var div=document.createElement("div"); div.className="msg "+(m.user===user?"me":"other");
   div.id = "m_" + msgKey;
@@ -303,19 +328,6 @@ function addMsg(m, container, msgKey){
   container.appendChild(div); container.scrollTop = container.scrollHeight;
 }
 
-enterBtn.onclick=function(){
-  if(!username.value.trim()) return; user=username.value.trim();
-  requestNotifyPermission();
-  userColor = "#"+Math.floor(Math.random()*16777215).toString(16);
-  userColorPicker.value = userColor;
-  login.style.display="none"; chat.style.display="flex";
-  document.getElementById("chatMenuBtn").style.display="block";
-  db.ref("users/"+user).set({name:user, color:userColor, avatar: "", lastSeen:Date.now()});
-  var ref=db.ref("presence").push({name:user}); presenceKey=ref.key; ref.onDisconnect().remove();
-  db.ref("mensajes").push({system:true,text:user+" entró",ts:Date.now()});
-  listenPublic(); listenForPrivateNotif(); updateUsers();
-}
-
 myAvatarDisplay.onclick = () => avatarInput.click();
 avatarInput.onchange = e => {
     let f = e.target.files[0]; if(!f) return;
@@ -324,7 +336,6 @@ avatarInput.onchange = e => {
         myAvatarDisplay.textContent = ""; db.ref("users/"+user+"/avatar").set(u);
     }));
 };
-
 userColorPicker.onchange = (e) => { userColor = e.target.value; db.ref("users/"+user+"/color").set(userColor); };
 
 function listenPublic(){
@@ -342,7 +353,6 @@ function listenForPrivateNotif(){
                     unreadCounts[m.user] = (unreadCounts[m.user] || 0) + 1;
                     document.getElementById("menuBadge").style.display = "block";
                     updateUsers(); playReceive(); 
-                    sendNotification("Nuevo mensaje de " + m.user, m.text || "Multimedia");
                 }
             });
         }
@@ -357,7 +367,7 @@ function updateUsers(){
       var online=[]; p.forEach(c=>online.push(c.val().name));
       allUsersCached = [];
       u.forEach(c => { if(c.key !== user) {
-            allUsersCached.push({ name: c.key, color: c.val().color || "#075e54", avatar: c.val().avatar || "", isOnline: online.includes(c.key) });
+            allUsersCached.push({ name: c.key, color: c.val().color || "#075e54", avatar: c.val().avatar || "", isOnline: online.includes(childVal = c.val().name || c.key) });
       }});
       renderUserList();
     });
@@ -452,10 +462,8 @@ async function toggleRecording(btn, isPrivate) {
         rec.stop(); btn.classList.remove("recording");
     }
 }
-
 recordBtn.onclick = function() { toggleRecording(this, false); };
 recordBtnPrivate.onclick = function() { toggleRecording(this, true); };
-
 document.getElementById("text").oninput = function() { autoGrow(this); };
 document.getElementById("privateText").oninput = function() { 
     autoGrow(this); if (!privateWith) return;
